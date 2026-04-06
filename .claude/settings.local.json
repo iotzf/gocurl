@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go get:*)",
+      "Bash(go test:*)",
+      "Bash(go build:*)",
+      "Bash(go list:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(echo \"Build failed with exit code $?\")",
+      "Bash(go clean:*)",
+      "Bash(go env:*)",
+      "Bash(go mod:*)",
+      "Bash(MSYS_NO_PATHCCONV=1 go build -o gocurl.exe .)",
+      "Bash(go version:*)",
+      "Bash(env)",
+      "Bash(rm:*)",
+      "Bash(mkdir -p /tmp/testbuild)",
+      "Read(//tmp/**)",
+      "Bash(mkdir -p internal)",
+      "Bash(mv internal:*)",
+      "Bash(GOWORK=off go build -o test7.exe .)",
+      "Bash(bash:*)",
+      "Bash(rm internal/httpclient_test.go)",
+      "Bash(mv internal/httpclient.go httpclient/)",
+      "Bash(rmdir internal:*)",
+      "Bash(go doc:*)",
+      "Bash(./gocurl.exe --help)",
+      "Bash(./gocurl.exe)",
+      "Bash(./gocurl.exe https://httpbin.org/get)",
+      "Bash(./gocurl.exe httpbin.org/get)",
+      "WebSearch",
+      "Bash(./gocurl.exe -X POST -d '{\"key\":\"value\"}' https://httpbin.org/post)",
+      "Bash(C:/Users/cedar/Desktop/demo22/gocurl.exe:*)"
+    ]
+  }
+}
