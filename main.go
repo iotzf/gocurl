@@ -17,6 +17,8 @@ var (
 	data        = kingpin.Flag("data", "请求体数据").Short('d').String()
 	contentType = kingpin.Flag("content-type", "Content-Type").Short('T').Default("application/json").String()
 	timeout     = kingpin.Flag("timeout", "超时时间秒").Short('t').Default("30").Int()
+	verbose     = kingpin.Flag("verbose", "打印请求头").Short('v').Bool()
+	insecure    = kingpin.Flag("insecure", "忽略证书验证").Short('k').Bool()
 	url         = kingpin.Arg("url", "目标 URL").Required().String()
 )
 
@@ -39,7 +41,7 @@ func main() {
 	}
 
 	// 发送请求
-	resp, err := httpclient.DoRequest(*method, *url, headerMap, bodyReader, *timeout)
+	resp, err := httpclient.DoRequest(*method, *url, headerMap, bodyReader, *timeout, *verbose, *insecure)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
