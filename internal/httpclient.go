@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,15 +19,31 @@ type Response struct {
 }
 
 // NewClient 创建配置好超时时间的 HTTP 客户端
-func NewClient(timeout int) *http.Client {
+func NewClient(timeout int, insecure bool) *http.Client {
+	tr := &http.Transport{}
+	if insecure {
+		tr = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
 	return &http.Client{
-		Timeout: time.Duration(timeout) * time.Second,
+		Timeout:   time.Duration(timeout) * time.Second,
+		Transport: tr,
 	}
 }
 
 // DoRequest 执行 HTTP 请求
-func DoRequest(method, url string, headers map[string]string, body io.Reader, timeout int) (*Response, error) {
-	client := NewClient(timeout)
+func DoRequest(method, url string, headers map[string]string, body io.Reader, timeout int, verbose, insecure bool) (*Response, error) {
+	client := NewClient(timeout, insecure)
+
+	// 打印请求头
+	if verbose {
+		fmt.Printf("> %s %s\n", method, url)
+		for k, v := range headers {
+			fmt.Printf("> %s: %s\n", k, v)
+		}
+		fmt.Println()
+	}
 
 	var bodyReader io.Reader
 	if body != nil {
