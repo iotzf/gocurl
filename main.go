@@ -19,6 +19,7 @@ var (
 	timeout     = kingpin.Flag("timeout", "超时时间秒").Short('t').Default("30").Int()
 	verbose     = kingpin.Flag("verbose", "打印请求头").Short('v').Bool()
 	insecure    = kingpin.Flag("insecure", "忽略证书验证").Short('k').Bool()
+	proxy       = kingpin.Flag("proxy", "代理地址，如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080").String()
 	url         = kingpin.Arg("url", "目标 URL").Required().String()
 )
 
@@ -41,7 +42,7 @@ func main() {
 	}
 
 	// 发送请求
-	resp, err := httpclient.DoRequest(*method, *url, headerMap, bodyReader, *timeout, *verbose, *insecure)
+	resp, err := httpclient.DoRequest(*method, *url, headerMap, bodyReader, *timeout, *verbose, *insecure, *proxy)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
