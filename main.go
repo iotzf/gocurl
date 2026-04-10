@@ -12,15 +12,17 @@ import (
 )
 
 var (
-	method      = kingpin.Flag("method", "HTTP 方法").Short('X').Default("GET").String()
-	headers     = kingpin.Flag("header", "自定义请求头").Short('H').StringMap()
-	data        = kingpin.Flag("data", "请求体数据").Short('d').String()
-	contentType = kingpin.Flag("content-type", "Content-Type").Short('T').Default("application/json").String()
-	timeout     = kingpin.Flag("timeout", "超时时间秒").Short('t').Default("30").Int()
-	verbose     = kingpin.Flag("verbose", "打印请求头").Short('v').Bool()
-	insecure    = kingpin.Flag("insecure", "忽略证书验证").Short('k').Bool()
-	proxy       = kingpin.Flag("proxy", "代理地址，如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080").String()
-	url         = kingpin.Arg("url", "目标 URL").Required().String()
+	method        = kingpin.Flag("method", "HTTP 方法").Short('X').Default("GET").String()
+	headers       = kingpin.Flag("header", "自定义请求头").Short('H').StringMap()
+	data          = kingpin.Flag("data", "请求体数据").Short('d').String()
+	contentType   = kingpin.Flag("content-type", "Content-Type").Short('T').Default("application/json").String()
+	timeout       = kingpin.Flag("timeout", "超时时间秒").Short('t').Default("30").Int()
+	verbose       = kingpin.Flag("verbose", "打印请求头").Short('v').Bool()
+	insecure      = kingpin.Flag("insecure", "忽略证书验证").Short('k').Bool()
+	proxy         = kingpin.Flag("proxy", "代理地址，如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080").String()
+	downloadMode  = kingpin.Flag("download", "下载模式，保存到文件").Short('o').Bool()
+	outputFile    = kingpin.Flag("output", "输出文件名").Short('O').String()
+	url           = kingpin.Arg("url", "目标 URL").Required().String()
 )
 
 func main() {
@@ -41,13 +43,26 @@ func main() {
 		bodyReader = strings.NewReader(*data)
 	}
 
-	// 发送请求
-	resp, err := httpclient.DoRequest(*method, *url, headerMap, bodyReader, *timeout, *verbose, *insecure, *proxy)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	// 确定输出文件名
+	outputFilename := *outputFile
+	if outputFilename == "" && *downloadMode {
+		outputFilename = httpclient.ExtractFilenameFromURL(*url)
 	}
 
-	// 输出响应
-	fmt.Print(httpclient.FormatResponse(resp))
+	// 发送请求
+	if *downloadMode {
+		err := httpclient.DownloadFile(*method, *url, headerMap, bodyReader, *timeout, *verbose, *insecure, *proxy, outputFilename)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		resp, err := httpclient.DoRequest(*method, *url, headerMap, bodyReader, *timeout, *verbose, *insecure, *proxy)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		// 输出响应
+		fmt.Print(httpclient.FormatResponse(resp))
+	}
 }

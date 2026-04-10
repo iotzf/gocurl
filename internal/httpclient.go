@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -154,4 +155,134 @@ func FormatResponse(resp *Response) string {
 
 func isJSON(contentType string) bool {
 	return strings.Contains(contentType, "application/json")
+}
+
+// DownloadFile downloads a file with progress bar
+func DownloadFile(method, rawURL string, headers map[string]string, body io.Reader, timeout int, verbose, insecure bool, proxy string, outputFilename string) error {
+	resolvedProxy := GetProxy(proxy)
+	client := NewClient(timeout, insecure, resolvedProxy)
+
+	// Print request headers
+	if verbose {
+		fmt.Printf("> %s %s\n", method, rawURL)
+		for k, v := range headers {
+			fmt.Printf("> %s: %s\n", k, v)
+		}
+		fmt.Println()
+	}
+
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = body
+	}
+
+	req, err := http.NewRequest(method, rawURL, bodyReader)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Get total size
+	totalSize := resp.ContentLength
+
+	// Create progress bar
+	pb := NewProgressBar(totalSize, outputFilename)
+
+	// Check for resume support
+	fileInfo, _ := os.Stat(outputFilename)
+	var startPos int64 = 0
+	if fileInfo != nil && fileInfo.Size() > 0 {
+		// Partial file exists, check if server supports resume
+		if resp.Header.Get("Accept-Ranges") == "bytes" {
+			startPos = fileInfo.Size()
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", startPos))
+			pb.SetDownloaded(startPos)
+			// Re-do request with Range header
+			resp.Body.Close()
+			resp, err = client.Do(req)
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+		}
+	}
+
+	// Open output file
+	outFile, err := os.OpenFile(outputFilename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("cannot open output file: %w", err)
+	}
+
+	// Ensure file is truncated if not resuming
+	if startPos == 0 {
+		outFile.Truncate(0)
+		outFile.Seek(0, 0)
+	}
+
+	// Create a writer that updates progress
+	writer := &progressWriter{
+		file:     outFile,
+		progress: pb,
+	}
+
+	// Copy with progress tracking
+	buf := make([]byte, 32*1024) // 32KB buffer
+	for {
+		nr, readErr := resp.Body.Read(buf)
+		if nr > 0 {
+			// Write to file and update progress
+			_, writeErr := writer.Write(buf[0:nr])
+			if writeErr != nil {
+				outFile.Close()
+				return fmt.Errorf("write error: %w", writeErr)
+			}
+		}
+		if readErr != nil {
+			if readErr == io.EOF {
+				break
+			}
+			outFile.Close()
+			return fmt.Errorf("read error: %w", readErr)
+		}
+	}
+
+	pb.Finish()
+	outFile.Close()
+
+	return nil
+}
+
+type progressWriter struct {
+	file     *os.File
+	progress *ProgressBar
+}
+
+func (pw *progressWriter) Write(p []byte) (n int, err error) {
+	n, err = pw.file.Write(p)
+	pw.progress.downloaded += int64(n)
+	return
+}
+
+// ExtractFilenameFromURL extracts filename from URL path
+func ExtractFilenameFromURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "gocurl_download"
+	}
+	filename := path.Base(u.Path)
+	// URL decode
+	filename, err = url.QueryUnescape(filename)
+	if err != nil || filename == "" || filename == "." || filename == "/" {
+		return "gocurl_download"
+	}
+	return filename
 }
