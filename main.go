@@ -22,6 +22,8 @@ var (
 	proxy         = kingpin.Flag("proxy", "代理地址，如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080").String()
 	downloadMode  = kingpin.Flag("download", "下载模式，保存到文件").Short('o').Bool()
 	outputFile    = kingpin.Flag("output", "输出文件名").Short('O').String()
+	wsMode        = kingpin.Flag("ws", "启用 WebSocket 模式").Bool()
+	wsOrigin      = kingpin.Flag("ws-origin", "WebSocket Origin 头").String()
 	url           = kingpin.Arg("url", "目标 URL").Required().String()
 )
 
@@ -47,6 +49,16 @@ func main() {
 	outputFilename := *outputFile
 	if outputFilename == "" && *downloadMode {
 		outputFilename = httpclient.ExtractFilenameFromURL(*url)
+	}
+
+	// 检测 WebSocket 模式
+	if *wsMode || httpclient.HasWebSocketScheme(*url) {
+		err := httpclient.RunWebSocket(*url, *wsOrigin, *timeout)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	// 发送请求
